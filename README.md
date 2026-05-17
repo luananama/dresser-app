@@ -2,6 +2,8 @@
 
 A mobile-first closet inventory app with a Habitica-inspired pixel-art aesthetic. Track your clothing, resist fast fashion, and get rewarded for sustainable habits.
 
+See app at https://dresser-app.vercel.app/login
+
 ## Stack
 
 - **Backend:** Python 3.14, FastAPI, SQLAlchemy (async), Alembic, PostgreSQL (Supabase)
@@ -81,14 +83,14 @@ API docs (Swagger UI): http://localhost:8000/docs
 
 ### Environment variables
 
-| Variable | Description |
-|---|---|
-| `SECRET_KEY` | Random hex string for JWT signing — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `ALGORITHM` | JWT algorithm, default `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime, default `10080` (7 days) |
-| `DATABASE_URL` | Async PostgreSQL URL, e.g. `postgresql+asyncpg://user:pass@host:6543/db?ssl=require` |
-| `UPLOAD_DIR` | Path to image upload directory, default `./uploads` |
-| `MAX_IMAGE_SIZE_MB` | Max upload size, default `5` |
+| Variable                      | Description                                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `SECRET_KEY`                  | Random hex string for JWT signing — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ALGORITHM`                   | JWT algorithm, default `HS256`                                                                               |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime, default `10080` (7 days)                                                                     |
+| `DATABASE_URL`                | Async PostgreSQL URL, e.g. `postgresql+asyncpg://user:pass@host:6543/db?ssl=require`                         |
+| `UPLOAD_DIR`                  | Path to image upload directory, default `./uploads`                                                          |
+| `MAX_IMAGE_SIZE_MB`           | Max upload size, default `5`                                                                                 |
 
 ### Database migrations
 
