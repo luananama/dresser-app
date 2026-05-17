@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-pink-100: #ffd6e8;
+  --color-pink-200: #ffadd2;
+  --color-pink-300: #ff85b8;
+  --color-pink-400: #f06292;
+  --color-pink-500: #e91e8c;
+  --color-pink-600: #c2185b;
+
+  --color-pixel-bg: #fdf6f9;
+  --color-pixel-surface: #fff0f6;
+  --color-pixel-border: #e8a0bf;
+  --color-pixel-text: #3d1a2e;
+  --color-pixel-muted: #9e7191;
+
+  --font-pixel: "Press Start 2P", monospace;
+  --font-body: "Nunito", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-color: var(--color-pixel-bg);
+  color: var(--color-pixel-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Pixel border utility — thick border via box-shadow, zero border-radius */
+.pixel-border {
+  box-shadow:
+    4px 0 0 0 var(--color-pixel-border),
+    -4px 0 0 0 var(--color-pixel-border),
+    0 4px 0 0 var(--color-pixel-border),
+    0 -4px 0 0 var(--color-pixel-border);
+  border-radius: 0 !important;
+}
+
+.pixel-border-sm {
+  box-shadow:
+    2px 0 0 0 var(--color-pixel-border),
+    -2px 0 0 0 var(--color-pixel-border),
+    0 2px 0 0 var(--color-pixel-border),
+    0 -2px 0 0 var(--color-pixel-border);
+  border-radius: 0 !important;
+}
+
+.pixel-border-dark {
+  box-shadow:
+    4px 0 0 0 var(--color-pixel-text),
+    -4px 0 0 0 var(--color-pixel-text),
+    0 4px 0 0 var(--color-pixel-text),
+    0 -4px 0 0 var(--color-pixel-text);
+  border-radius: 0 !important;
+}
