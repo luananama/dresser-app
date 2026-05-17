@@ -4,7 +4,10 @@ from typing import Optional
 
 import httpx
 from fastapi import UploadFile
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
+from pillow_heif import register_heif_opener
+
+register_heif_opener()
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,9 +26,11 @@ async def save_image(file: UploadFile, user_id: int) -> str:
     if len(contents) > max_bytes:
         raise ValueError(f"Image exceeds {settings.MAX_IMAGE_SIZE_MB}MB limit")
 
-    img = Image.open(io.BytesIO(contents))
-    img.verify()
-    img = Image.open(io.BytesIO(contents))
+    try:
+        img = Image.open(io.BytesIO(contents))
+        img.load()
+    except UnidentifiedImageError:
+        raise ValueError("Unsupported image format. Please use JPEG, PNG, WEBP, or HEIC.")
 
     if max(img.width, img.height) > MAX_DIMENSION:
         img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.LANCZOS)
