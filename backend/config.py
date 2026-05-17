@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str
     SUPABASE_BUCKET: str = "clothing-images"
 
-    CORS_ORIGINS: str = "http://localhost:5173"
 
 
 settings = Settings()
