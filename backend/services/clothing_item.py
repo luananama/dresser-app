@@ -29,22 +29,24 @@ async def save_image(file: UploadFile, user_id: int) -> str:
     try:
         img = Image.open(io.BytesIO(contents))
         img.load()
-    except UnidentifiedImageError:
+    except (UnidentifiedImageError, Exception) as e:
         raise ValueError("Unsupported image format. Please use JPEG, PNG, WEBP, or HEIC.")
 
     if max(img.width, img.height) > MAX_DIMENSION:
         img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.LANCZOS)
 
-    if file.content_type == "image/png":
-        ext, fmt, content_type = "png", "PNG", "image/png"
-        save_kwargs: dict = {"optimize": True}
-    elif file.content_type == "image/webp":
-        ext, fmt, content_type = "webp", "WEBP", "image/webp"
-        save_kwargs = {}
-    else:
-        ext, fmt, content_type = "jpg", "JPEG", "image/jpeg"
+    # Composite transparency onto white before saving
+    if img.mode in ("RGBA", "LA", "P"):
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        if img.mode == "P":
+            img = img.convert("RGBA")
+        bg.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+        img = bg
+    elif img.mode != "RGB":
         img = img.convert("RGB")
-        save_kwargs = {"quality": 85, "optimize": True}
+
+    ext, fmt, content_type = "jpg", "JPEG", "image/jpeg"
+    save_kwargs: dict = {"quality": 85, "optimize": True}
 
     buf = io.BytesIO()
     img.save(buf, format=fmt, **save_kwargs)
