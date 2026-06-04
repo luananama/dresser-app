@@ -6,6 +6,8 @@ import ClosetPage from './pages/ClosetPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ItemDetailPage from './pages/ItemDetailPage'
 import LoginPage from './pages/LoginPage'
+import CalendarPage from './pages/CalendarPage'
+import PackingPage from './pages/PackingPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import TryOnPage from './pages/TryOnPage'
@@ -36,6 +38,8 @@ function AppRoutes() {
         <Route path="/items/:id" element={<ItemDetailPage />} />
         <Route path="/items/:id/edit" element={<AddEditItemPage />} />
         <Route path="/tryon" element={<TryOnPage />} />
+        <Route path="/packing" element={<PackingPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
