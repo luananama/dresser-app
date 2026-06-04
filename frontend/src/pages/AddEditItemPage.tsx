@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ItemForm, { type ItemFormValues } from '../components/closet/ItemForm'
 import { useItem } from '../hooks/useItems'
 import client from '../api/client'
@@ -76,6 +76,8 @@ function EditItem({ id }: { id: number }) {
 
 function NewItem() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const pendingImage = (location.state as { pendingImage?: File } | null)?.pendingImage ?? null
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -98,6 +100,7 @@ function NewItem() {
         Add Item
       </h1>
       <ItemForm
+        initialImageFile={pendingImage}
         onSubmit={handleSubmit}
         submitLabel="ADD TO CLOSET"
         loading={submitting}

@@ -8,6 +8,7 @@ import ItemDetailPage from './pages/ItemDetailPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import TryOnPage from './pages/TryOnPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
@@ -34,6 +35,7 @@ function AppRoutes() {
         <Route path="/items/new" element={<AddEditItemPage />} />
         <Route path="/items/:id" element={<ItemDetailPage />} />
         <Route path="/items/:id/edit" element={<AddEditItemPage />} />
+        <Route path="/tryon" element={<TryOnPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

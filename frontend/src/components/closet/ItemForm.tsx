@@ -19,6 +19,7 @@ export interface ItemFormValues {
 interface ItemFormProps {
   initial?: Partial<ItemFormValues>
   existingImagePath?: string | null
+  initialImageFile?: File | null
   onSubmit: (values: ItemFormValues) => Promise<void>
   submitLabel?: string
   loading?: boolean
@@ -32,6 +33,7 @@ const SEASON_OPTIONS = Object.entries(SEASON_LABELS).map(([v, l]) => ({ value: v
 export default function ItemForm({
   initial,
   existingImagePath,
+  initialImageFile,
   onSubmit,
   submitLabel = 'SAVE',
   loading = false,
@@ -45,9 +47,11 @@ export default function ItemForm({
     date_acquired: initial?.date_acquired ?? '',
     season: initial?.season ?? 'all_year',
     notes: initial?.notes ?? '',
-    image: null,
+    image: initialImageFile ?? null,
   })
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(() =>
+    initialImageFile ? URL.createObjectURL(initialImageFile) : null
+  )
   const fileRef = useRef<HTMLInputElement>(null)
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
