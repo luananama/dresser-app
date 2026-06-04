@@ -1,4 +1,5 @@
 import io
+import logging
 import uuid
 from typing import Optional
 
@@ -15,6 +16,8 @@ from backend.config import settings
 from backend.models.clothing_item import Category, ClothingItem, Season
 from backend.schemas.clothing_item import ClothingItemCreate, ClothingItemUpdate
 
+logger = logging.getLogger(__name__)
+
 MAX_DIMENSION = 1200
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
@@ -29,28 +32,51 @@ async def save_image(file: UploadFile, user_id: int) -> str:
     try:
         img = Image.open(io.BytesIO(contents))
         img.load()
-    except (UnidentifiedImageError, Exception) as e:
+    except (UnidentifiedImageError, Exception):
         raise ValueError("Unsupported image format. Please use JPEG, PNG, WEBP, or HEIC.")
 
     if max(img.width, img.height) > MAX_DIMENSION:
         img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.LANCZOS)
 
-    # Composite transparency onto white before saving
-    if img.mode in ("RGBA", "LA", "P"):
-        bg = Image.new("RGB", img.size, (255, 255, 255))
-        if img.mode == "P":
-            img = img.convert("RGBA")
-        bg.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
-        img = bg
-    elif img.mode != "RGB":
+    if img.mode not in ("RGB", "RGBA"):
         img = img.convert("RGB")
 
-    ext, fmt, content_type = "jpg", "JPEG", "image/jpeg"
-    save_kwargs: dict = {"quality": 85, "optimize": True}
-
     buf = io.BytesIO()
-    img.save(buf, format=fmt, **save_kwargs)
+    img.save(buf, format="JPEG", quality=85, optimize=True)
     image_bytes = buf.getvalue()
+
+    if settings.REMOVE_BG_API_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    "https://api.remove.bg/v1.0/removebg",
+                    headers={"X-Api-Key": settings.REMOVE_BG_API_KEY},
+                    files={"image_file": ("image.jpg", image_bytes, "image/jpeg")},
+                    data={"size": "auto"},
+                )
+                resp.raise_for_status()
+                image_bytes = resp.content
+                ext, content_type = "png", "image/png"
+                logger.info("remove.bg: background removed successfully")
+        except httpx.HTTPStatusError as e:
+            logger.error("remove.bg API error %s: %s", e.response.status_code, e.response.text)
+            ext, content_type = "jpg", "image/jpeg"
+        except Exception as e:
+            logger.error("remove.bg failed: %s", e)
+            ext, content_type = "jpg", "image/jpeg"
+    else:
+        logger.warning("REMOVE_BG_API_KEY not set — skipping background removal")
+        # Composite transparency onto white before saving as JPEG
+        if img.mode in ("RGBA", "LA", "P"):
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            bg.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+            img = bg
+            buf2 = io.BytesIO()
+            img.save(buf2, format="JPEG", quality=85, optimize=True)
+            image_bytes = buf2.getvalue()
+        ext, content_type = "jpg", "image/jpeg"
 
     storage_path = f"{user_id}/{uuid.uuid4()}.{ext}"
     upload_url = f"{settings.SUPABASE_URL}/storage/v1/object/{settings.SUPABASE_BUCKET}/{storage_path}"

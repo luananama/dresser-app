@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str
     SUPABASE_BUCKET: str = "clothing-images"
 
+    REMOVE_BG_API_KEY: str | None = None
+
 
 
 settings = Settings()
