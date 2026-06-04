@@ -52,7 +52,7 @@ interface ZoneProps {
   label: string
   category: Category
   items: ClothingItem[]
-  index: number                       // -1 = none selected
+  index: number
   onIndexChange: (i: number) => void
   extra?: React.ReactNode
   pinned?: Pinned | null
@@ -60,32 +60,75 @@ interface ZoneProps {
   onClearPinned?: () => void
 }
 
+const ITEM_W = 0.70  // item width as fraction of container
+const SPACER_W = 0.15 // spacer width as fraction of container
+
 function Zone({ label, category, items, index, onIndexChange, extra, pinned, onSavePinned, onClearPinned }: ZoneProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const skipUpdate = useRef(false)
+  const initialized = useRef(false)
   const icon = ICON[category] ?? '👗'
   const isPinned = !!pinned
 
-  // Virtual list: slot 0 = "none", slots 1..n = items
+  // slots[0] = null (none), slots[1..n] = items
   const slots: Array<ClothingItem | null> = [null, ...items]
+  const N = slots.length
+  // Triple the slots so user can scroll infinitely in either direction
+  const looping = items.length > 0
+  const displaySlots = looping ? [...slots, ...slots, ...slots] : slots
 
-  // Re-apply scale values on every scroll frame (direct DOM, no re-render)
-  // Skip first and last children (spacers)
+  // ── scale: measure real screen positions, no offsetLeft tricks ──────────────
   const applyScales = useCallback(() => {
     const el = scrollRef.current
     if (!el) return
     const elRect = el.getBoundingClientRect()
-    const visibleCenter = elRect.left + elRect.width / 2
-    const children = Array.from(el.children).slice(1, -1) // skip spacers
+    const center = elRect.left + elRect.width / 2
+    // children layout: [spacer, ...displaySlots..., spacer]
+    const children = Array.from(el.children).slice(1, -1)
     children.forEach(child => {
       const c = child as HTMLElement
       const r = c.getBoundingClientRect()
-      const dist = Math.abs(r.left + r.width / 2 - visibleCenter) / elRect.width
+      const dist = Math.abs(r.left + r.width / 2 - center) / elRect.width
       c.style.transform = `scale(${1 - Math.min(dist * 0.35, 0.2)})`
     })
   }, [])
 
+  // ── initialise scroll to the start of the middle copy ──────────────────────
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !looping || initialized.current) return
+    initialized.current = true
+    const itemPx = el.clientWidth * ITEM_W
+    // middle copy starts at slot index N in displaySlots → scrollLeft = N * itemPx
+    el.scrollLeft = N * itemPx
+    applyScales()
+  })
+
+  // ── re-initialise whenever items load for the first time ───────────────────
+  const prevN = useRef(N)
+  useEffect(() => {
+    if (prevN.current === N) return
+    prevN.current = N
+    initialized.current = false // allow re-init
+  }, [N])
+
+  // ── scroll to a specific index externally (pin/clear) ──────────────────────
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    // In the looping layout the middle copy starts at child index N+1 (after leading spacer)
+    // slot for given index: index+1 (0=none, 1=item[0], …)
+    // child index in middle copy: (N + index + 1) + 1 (spacer offset) = N + index + 2
+    const childIdx = looping ? N + index + 2 : index + 2
+    const child = el.children[childIdx] as HTMLElement | undefined
+    if (!child) return
+    skipUpdate.current = true
+    child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    setTimeout(() => { skipUpdate.current = false; applyScales() }, 400)
+  }, [index, applyScales, looping, N])
+
+  // ── scroll handler: scale + debounced index + loop-jump ────────────────────
   const handleScroll = useCallback(() => {
     applyScales()
     if (skipUpdate.current) return
@@ -94,36 +137,44 @@ function Zone({ label, category, items, index, onIndexChange, extra, pinned, onS
       const el = scrollRef.current
       if (!el) return
       const elRect = el.getBoundingClientRect()
-      const visibleCenter = elRect.left + elRect.width / 2
-      const children = Array.from(el.children).slice(1, -1) // skip spacers
+      const center = elRect.left + elRect.width / 2
+      const children = Array.from(el.children).slice(1, -1)
+
+      // find which slot is closest to center
       let best = 0, bestDist = Infinity
       children.forEach((child, i) => {
         const r = (child as HTMLElement).getBoundingClientRect()
-        const d = Math.abs(r.left + r.width / 2 - visibleCenter)
+        const d = Math.abs(r.left + r.width / 2 - center)
         if (d < bestDist) { bestDist = d; best = i }
       })
-      onIndexChange(best - 1) // slot 0 = "none" (-1), slot 1 = items[0] (0), etc.
+
+      if (looping) {
+        const itemPx = el.clientWidth * ITEM_W
+        const copyPx = N * itemPx
+
+        // If in first copy (best < N), jump forward one copy
+        // If in third copy (best >= 2N), jump back one copy
+        if (best < N) {
+          skipUpdate.current = true
+          el.scrollLeft += copyPx
+          setTimeout(() => { skipUpdate.current = false; applyScales() }, 30)
+        } else if (best >= N * 2) {
+          skipUpdate.current = true
+          el.scrollLeft -= copyPx
+          setTimeout(() => { skipUpdate.current = false; applyScales() }, 30)
+        }
+
+        onIndexChange((best % N) - 1) // real index: slot 0 → -1, slot 1 → 0, …
+      } else {
+        onIndexChange(best - 1)
+      }
     }, 80)
-  }, [applyScales, onIndexChange])
+  }, [applyScales, looping, N, onIndexChange])
 
-  // Scroll to index when it changes externally (e.g. pin/clear)
-  // children layout: [spacer] [slot0=none] [slot1=items[0]] ... [spacer]
-  // so target child = index + 2 (skip leading spacer, skip "none" slot if index>=0)
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    // +1 for leading spacer, +1 for "none" slot at position 0 → index+2, but "none" is slot 0 so index=-1 → child 1
-    const childIndex = index + 2 // spacer(0), none(1), items[0](2), ...
-    const child = el.children[childIndex] as HTMLElement | undefined
-    if (!child) return
-    skipUpdate.current = true
-    child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-    setTimeout(() => { skipUpdate.current = false; applyScales() }, 400)
-  }, [index, applyScales])
-
-  // Re-run scales whenever items load or index changes
+  // re-run scales when items load
   useEffect(() => { applyScales() }, [applyScales, items.length, index])
 
+  // ── pinned state ────────────────────────────────────────────────────────────
   if (isPinned) {
     return (
       <div className="flex-1 relative bg-white overflow-hidden">
@@ -147,22 +198,20 @@ function Zone({ label, category, items, index, onIndexChange, extra, pinned, onS
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
-      {/* Scroll strip */}
       <div
         ref={scrollRef}
         className="flex-1 flex overflow-x-auto hide-scrollbar"
         style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}
         onScroll={handleScroll}
       >
-        {/* Leading spacer so first item can snap to center */}
-        <div style={{ minWidth: '15%', flexShrink: 0 }} />
+        <div style={{ minWidth: `${SPACER_W * 100}%`, flexShrink: 0 }} />
 
-        {slots.map((item) => (
+        {displaySlots.map((item, i) => (
           <div
-            key={item?.id ?? 'none'}
+            key={`${looping ? i % N : i}-${item?.id ?? 'none'}`}
             className="flex items-center justify-center"
             style={{
-              minWidth: '70%',
+              minWidth: `${ITEM_W * 100}%`,
               flexShrink: 0,
               scrollSnapAlign: 'center',
               scrollSnapStop: 'always',
@@ -177,20 +226,16 @@ function Zone({ label, category, items, index, onIndexChange, extra, pinned, onS
               <div className="flex flex-col items-center gap-2 opacity-25 select-none">
                 <span className="text-5xl">{icon}</span>
                 {items.length > 0 && (
-                  <span className="text-[10px] text-gray-400" style={{ fontFamily: 'system-ui, sans-serif' }}>
-                    none
-                  </span>
+                  <span className="text-[10px] text-gray-400" style={{ fontFamily: 'system-ui, sans-serif' }}>none</span>
                 )}
               </div>
             )}
           </div>
         ))}
 
-        {/* Trailing spacer so last item can snap to center */}
-        <div style={{ minWidth: '15%', flexShrink: 0 }} />
+        <div style={{ minWidth: `${SPACER_W * 100}%`, flexShrink: 0 }} />
       </div>
 
-      {/* Zone label + counter */}
       <div className="flex items-center justify-between px-4 pb-1.5 pt-0.5 shrink-0">
         <span className="text-[9px] font-semibold tracking-widest uppercase text-gray-300"
           style={{ fontFamily: 'system-ui, sans-serif' }}>{label}</span>
