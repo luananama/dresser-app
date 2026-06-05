@@ -45,6 +45,10 @@ class TokenOut(BaseModel):
     user: UserOut
 
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
